@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Script to fetch AWS MSK metrics, cost data, and export them to an Excel file.
-
-Usage:
-    python script.py -c pullStatsConfig.json -d output_directory
 """
 import sys
 
@@ -11,7 +8,6 @@ import boto3
 import datetime
 import os
 import pandas as pd
-from configparser import ConfigParser  # Works for both Python 2.7 and 3+
 
 # Constants
 METRIC_COLLECTION_PERIOD_DAYS = 7
@@ -124,43 +120,10 @@ def get_costs(session):
         return pd.DataFrame()
 
 
-def create_aws_session(config, section):
-    """Create an AWS session with support for API keys and temporary session credentials via STS."""
-    if "aws_access_key_id" in config[section] and "aws_secret_access_key" in config[section]:
-        session_params = {
-            'aws_access_key_id': config.get(section, 'aws_access_key_id'),
-            'aws_secret_access_key': config.get(section, 'aws_secret_access_key'),
-            'region_name': config.get(section, 'region')
-        }
-        if "aws_session_token" in config[section]:
-            session_params['aws_session_token'] = config.get(section, 'aws_session_token')
-        base_session = boto3.Session(**session_params)
-    else:
-        print(f"❌ Missing AWS credentials for {section}. Ensure API keys or session tokens are provided.")
-        sys.exit(1)
-
-    if "aws_role_arn" in config[section]:
-        sts_client = base_session.client('sts')
-        assumed_role = sts_client.assume_role(
-            RoleArn=config.get(section, "aws_role_arn"),
-            RoleSessionName="KafkaMetricsSession"
-        )
-
-        credentials = assumed_role['Credentials']
-
-        return boto3.Session(
-            aws_access_key_id=credentials['AccessKeyId'],
-            aws_secret_access_key=credentials['SecretAccessKey'],
-            aws_session_token=credentials['SessionToken'],
-            region_name=config.get(section, 'region')
-        )
-
-    return base_session
-
-def process_aws_account(config, section, output_dir):
+def process_aws_account(section, output_dir):
     """Process MSK metrics and cost data for an AWS account."""
     print(f'Processing AWS account: {section}')
-    session = create_aws_session(config, section)
+    session = boto3.Session()
     output_file = os.path.join(output_dir, f"{section}-{session.region_name}.xlsx")
     writer = pd.ExcelWriter(output_file, engine='xlsxwriter')
 
@@ -177,14 +140,3 @@ def process_aws_account(config, section, output_dir):
 
     writer.close()
     print(f'Results saved to {output_file}')
-
-
-def processMSKStats(config_file, output_dir):
-    config = ConfigParser()
-    config.read(config_file)
-
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-
-    for section in config.sections():
-        process_aws_account(config, section, output_dir)
