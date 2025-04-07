@@ -1,0 +1,19 @@
+# Ignore IDEs
+.vscode/*
+*.idea
+*.log
+*.DS*
+
+# We don't want .env checked in
+.venv
+
+# Make sure we don't check in any config files
+*.cfg
+
+# Also don't want to check in any of the csv/xlsx files
+*.csv
+*.xlsx
+!sample*
+
+
+
