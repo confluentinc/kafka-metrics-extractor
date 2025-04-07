@@ -1,0 +1,24 @@
+[production]
+aws_access_key_id     = KEY_1
+aws_secret_access_key = SECRET_1
+region                = us-west-1
+
+[staging]
+aws_access_key_id     = KEY_2
+aws_secret_access_key = SECRET_2
+region                = us-east-1
+
+[kafka-cluster]
+cluster_type = kafka
+kafka_broker = kafka.mycompany.com:9092
+jmx_port = 9999
+
+[msk-production]
+cluster_type = msk
+aws_access_key_id = YOUR_AWS_KEY
+aws_secret_access_key = YOUR_AWS_SECRET
+aws_session_token = YOUR_SESSION_TOKEN   # (Optional) Required only for temporary credentials
+msk_cluster_arn = arn:aws:kafka:us-east-1:123456789012:cluster/my-msk-cluster/abcdefg-12345
+aws_role_arn = arn:aws:iam::123456789012:role/MSKReadOnlyRole
+region = us-east-1
+# Note: If aws_role_arn is present, the script will assume that role using STS.
