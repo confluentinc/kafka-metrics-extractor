@@ -14,6 +14,8 @@ METRIC_COLLECTION_PERIOD_DAYS = 7
 AGGREGATION_DURATION_SECONDS = 3600
 
 # Metrics
+CLUSTER_INFO = ["Region", 'ClusterName', 'Authentication', "KafkaVersion"]
+INSTANCE_INFO = ["NodeId", "NodeType", "VolumeSize (GB)"]
 AVERAGE_METRICS = ['BytesInPerSec', 'BytesOutPerSec', 'MessagesInPerSec', 'CpuUser']
 PEAK_METRICS = AVERAGE_METRICS + [
     'ConnectionCount', 'PartitionCount', 'GlobalTopicCount', 'EstimatedMaxTimeLag',
@@ -59,7 +61,8 @@ def get_metric(cloud_watch, cluster_id, node, metric, is_peak, time_period=METRI
 
 def create_data_frame():
     """Create an empty DataFrame with required columns."""
-    columns = ["Region", "ClusterName", "NodeId", "NodeType", "VolumeSize (GB)", "KafkaVersion"]
+    columns = CLUSTER_INFO.copy()
+    columns += INSTANCE_INFO
     columns += [f"{metric} (avg)" for metric in AVERAGE_METRICS]
     columns += [f"{metric} (max)" for metric in PEAK_METRICS]
     return pd.DataFrame(columns=columns)
@@ -72,12 +75,46 @@ def write_cluster_info(df, clusters_info, session, region):
 
     rows = []
     for cluster_id, details in running_instances.items():
+        cluster_info_written = False
+        base_info = []
+
+        if not cluster_info_written:
+            # Get the cluster's auth configuration
+            try:
+                auth_config = running_instances[cluster_id]['ClientAuthentication']
+                # Simplify auth info into a string
+                auth_types = []
+                if auth_config.get('Sasl', {}).get('Iam', {}).get('Enabled'):
+                    auth_types.append("SASL/IAM")
+                if auth_config.get('Sasl', {}).get('Scram', {}).get('Enabled'):
+                    auth_types.append("SASL/SCRAM")
+                if auth_config.get('Tls', {}).get('Enabled'):
+                    auth_types.append("TLS")
+                auth_string = ', '.join(auth_types) if auth_types else "None"
+            except Exception as e:
+                auth_string = "Unknown"
+
+            # Shared info to write only once
+            base_info = [
+                region,
+                cluster_id,
+                auth_string,
+                running_instances[cluster_id]['CurrentBrokerSoftwareInfo']['KafkaVersion']
+            ]
+
         for node_id in range(1, details['NumberOfBrokerNodes'] + 1):
-            row = [
-                region, cluster_id, node_id,
+            # Empty version of the same size
+            row = []
+            if cluster_info_written:
+                row += [""] * len(CLUSTER_INFO)
+            else:
+                row+=base_info
+                cluster_info_written = True
+
+            row += [
+                node_id,
                 details['BrokerNodeGroupInfo']['InstanceType'],
-                details['BrokerNodeGroupInfo']['StorageInfo']['EbsStorageInfo']['VolumeSize'],
-                details['CurrentBrokerSoftwareInfo']['KafkaVersion']
+                details['BrokerNodeGroupInfo']['StorageInfo']['EbsStorageInfo']['VolumeSize']
             ]
 
             row += [get_metric(cloud_watch, cluster_id, node_id, metric, False) for metric in AVERAGE_METRICS]
