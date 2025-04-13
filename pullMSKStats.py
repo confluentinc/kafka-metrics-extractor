@@ -14,13 +14,12 @@ METRIC_COLLECTION_PERIOD_DAYS = 7
 AGGREGATION_DURATION_SECONDS = 3600
 
 # Metrics
-CLUSTER_INFO = ["Region", 'ClusterName', 'Authentication', "KafkaVersion"]
+CLUSTER_INFO = ["Region", 'ClusterName', 'Authentication', "KafkaVersion", "EnhancedMonitoring"]
 INSTANCE_INFO = ["NodeId", "NodeType", "VolumeSize (GB)"]
 AVERAGE_METRICS = ['BytesInPerSec', 'BytesOutPerSec', 'MessagesInPerSec', 'CpuUser']
 PEAK_METRICS = AVERAGE_METRICS + [
     'ConnectionCount', 'PartitionCount', 'GlobalTopicCount', 'EstimatedMaxTimeLag',
-    'LeaderCount', 'ReplicationBytesOutPerSec', 'ReplicationBytesInPerSec',
-    'MemoryFree', 'MemoryUsed'
+    'LeaderCount', 'ReplicationBytesOutPerSec', 'ReplicationBytesInPerSec'
 ]
 
 
@@ -68,13 +67,14 @@ def create_data_frame():
     return pd.DataFrame(columns=columns)
 
 
-def write_cluster_info(df, clusters_info, session, region):
+def write_clusters_info(df, clusters_info, session, region):
     """Populate DataFrame with MSK cluster data."""
     cloud_watch = session.client('cloudwatch')
     running_instances = clusters_info['msk_running_instances']
 
     rows = []
     for cluster_id, details in running_instances.items():
+        print(f'Processing cluster account: {cluster_id}')
         cluster_info_written = False
         base_info = []
 
@@ -99,7 +99,8 @@ def write_cluster_info(df, clusters_info, session, region):
                 region,
                 cluster_id,
                 auth_string,
-                running_instances[cluster_id]['CurrentBrokerSoftwareInfo']['KafkaVersion']
+                running_instances[cluster_id]['CurrentBrokerSoftwareInfo']['KafkaVersion'],
+                running_instances[cluster_id]['EnhancedMonitoring']
             ]
 
         for node_id in range(1, details['NumberOfBrokerNodes'] + 1):
@@ -165,15 +166,15 @@ def process_aws_account(section, output_dir):
     writer = pd.ExcelWriter(output_file, engine='xlsxwriter')
 
     clusters_info = get_clusters_info(session)
-    cluster_df = write_cluster_info(create_data_frame(), clusters_info, session, session.region_name)
-    cluster_df.to_excel(writer, 'ClusterData', index=False)
+    cluster_df = write_clusters_info(create_data_frame(), clusters_info, session, session.region_name)
+    cluster_df.to_excel(excel_writer=writer, sheet_name='ClusterData', index=False)
 
     costs_df = get_costs(session)
     if not costs_df.empty:
         costs_df = pd.concat(
             [costs_df, pd.DataFrame([{"time_period": "TOTAL", "usage_type": "ALL", "cost": costs_df["cost"].sum()}])],
             ignore_index=True)
-        costs_df.to_excel(writer, 'Costs', index=False)
+        costs_df.to_excel(excel_writer=writer, sheet_name='Costs', index=False)
 
     writer.close()
     print(f'Results saved to {output_file}')
