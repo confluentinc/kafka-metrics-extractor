@@ -14,11 +14,11 @@ METRIC_COLLECTION_PERIOD_DAYS = 7
 AGGREGATION_DURATION_SECONDS = 3600
 
 # Metrics
-CLUSTER_INFO = ["Region", 'ClusterName', 'Authentication', "KafkaVersion", "EnhancedMonitoring"]
+CLUSTER_INFO = ["Region", 'ClusterName', 'Availability', 'Authentication', "KafkaVersion", "EnhancedMonitoring"]
 INSTANCE_INFO = ["NodeId", "NodeType", "VolumeSize (GB)"]
-AVERAGE_METRICS = ['BytesInPerSec', 'BytesOutPerSec', 'MessagesInPerSec', 'CpuUser']
+AVERAGE_METRICS = ['BytesInPerSec', 'BytesOutPerSec', 'MessagesInPerSec', 'KafkaDataLogsDiskUsed']
 PEAK_METRICS = AVERAGE_METRICS + [
-    'ConnectionCount', 'PartitionCount', 'GlobalTopicCount', 'EstimatedMaxTimeLag',
+    'ClientConnectionCount', 'PartitionCount', 'GlobalTopicCount',
     'LeaderCount', 'ReplicationBytesOutPerSec', 'ReplicationBytesInPerSec'
 ]
 
@@ -82,6 +82,14 @@ def write_clusters_info(df, clusters_info, session, region):
             # Get the cluster's auth configuration
             try:
                 auth_config = running_instances[cluster_id]['ClientAuthentication']
+
+                # Simplify auth info into a string
+                az_distribution = running_instances[cluster_id]["BrokerNodeGroupInfo"]["BrokerAZDistribution"]
+                if az_distribution == "DEFAULT":
+                   az_distribution = "Multiple AZ"
+                elif az_distribution == "SINGLE":
+                    az_distribution = "Single AZ"
+
                 # Simplify auth info into a string
                 auth_types = []
                 if auth_config.get('Sasl', {}).get('Iam', {}).get('Enabled'):
@@ -98,6 +106,7 @@ def write_clusters_info(df, clusters_info, session, region):
             base_info = [
                 region,
                 cluster_id,
+                az_distribution,
                 auth_string,
                 running_instances[cluster_id]['CurrentBrokerSoftwareInfo']['KafkaVersion'],
                 running_instances[cluster_id]['EnhancedMonitoring']
