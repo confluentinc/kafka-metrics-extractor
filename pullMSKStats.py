@@ -2,8 +2,6 @@
 """
 Script to fetch AWS MSK metrics, cost data, and export them to an Excel file.
 """
-import sys
-
 import boto3
 import datetime
 import os
@@ -80,27 +78,24 @@ def write_clusters_info(df, clusters_info, session, region):
 
         if not cluster_info_written:
             # Get the cluster's auth configuration
-            try:
-                auth_config = running_instances[cluster_id]['ClientAuthentication']
+            auth_config = running_instances[cluster_id]['ClientAuthentication']
 
-                # Simplify auth info into a string
-                az_distribution = running_instances[cluster_id]["BrokerNodeGroupInfo"]["BrokerAZDistribution"]
-                if az_distribution == "DEFAULT":
-                   az_distribution = "Multiple AZ"
-                elif az_distribution == "SINGLE":
-                    az_distribution = "Single AZ"
+            # Simplify auth info into a string
+            az_distribution = running_instances[cluster_id]["BrokerNodeGroupInfo"]["BrokerAZDistribution"]
+            if az_distribution == "DEFAULT":
+               az_distribution = "Multiple AZ"
+            elif az_distribution == "SINGLE":
+                az_distribution = "Single AZ"
 
-                # Simplify auth info into a string
-                auth_types = []
-                if auth_config.get('Sasl', {}).get('Iam', {}).get('Enabled'):
-                    auth_types.append("SASL/IAM")
-                if auth_config.get('Sasl', {}).get('Scram', {}).get('Enabled'):
-                    auth_types.append("SASL/SCRAM")
-                if auth_config.get('Tls', {}).get('Enabled'):
-                    auth_types.append("TLS")
-                auth_string = ', '.join(auth_types) if auth_types else "None"
-            except Exception as e:
-                auth_string = "Unknown"
+            # Simplify auth info into a string
+            auth_types = []
+            if auth_config.get('Sasl', {}).get('Iam', {}).get('Enabled'):
+                auth_types.append("SASL/IAM")
+            if auth_config.get('Sasl', {}).get('Scram', {}).get('Enabled'):
+                auth_types.append("SASL/SCRAM")
+            if auth_config.get('Tls', {}).get('Enabled'):
+                auth_types.append("TLS")
+            auth_string = ', '.join(auth_types) if auth_types else "None"
 
             # Shared info to write only once
             base_info = [
