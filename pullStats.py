@@ -37,14 +37,7 @@ def main():
         if config.get(section, 'cluster_type') == "msk":
             pullMSKStats.process_aws_account(section, args.output_dir)
         else:
-            print("❌ Invalid cluster type. Use 'msk' or 'kafka'.")
-    #
-    # if cluster_type == "msk":
-    #     print(f"📡 Running AWS MSK stats...")
-    #     pullMSKStats.processMSKStats(config_file, args.output_dir)
-    # elif cluster_type == "osk":
-    #     print(f"📡 Running Open-Source Kafka stats...")
-    #     pullKafkaStats.processKafkaStats(config_file, args.output_dir)
+            print("❌ Invalid cluster type. currently only 'msk' is supported.")
 
 if __name__ == "__main__":
     main()
