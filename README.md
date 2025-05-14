@@ -38,7 +38,49 @@ export AWS_SECRET_ACCESS_KEY=your_secret
 export AWS_SESSION_TOKEN=your_token     # Optional (if using temporary credentials)
 export AWS_DEFAULT_REGION=us-east-1
 ```
- 
+
+### 🔑 Required AWS Permissions
+
+To run the script successfully, your IAM user or role must have the following permissions:
+
+#### ✅ Required AWS Services:
+- Amazon MSK
+- Amazon CloudWatch
+- AWS Cost Explorer
+
+#### 🔐 Minimum IAM Policy Permissions:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "kafka:ListClusters",
+        "kafka:DescribeCluster"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:GetMetricStatistics",
+        "cloudwatch:ListMetrics"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ce:GetCostAndUsage"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
 ### 5️⃣ Run the Script
 Execute the script with the configuration file:
 ```bash
