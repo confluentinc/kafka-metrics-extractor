@@ -1,7 +1,8 @@
 # 📊 kafka-metrics-extractor
  
 `kafka-metrics-extractor` is a tool designed to pull raw usage from Kafka providers such as MSK, OSK and others (currently supports MSK).
-The script for extracting MSK usage, collects the data form CloudWatch and CostExplorer in order to avoid any cluster disruption. 
+The script for extracting MSK usage, it uses MSK permissions to list and describe the clusters only and then 
+collects the usage data from CloudWatch and CostExplorer in order to avoid any cluster disruption. 
  
 ## 🚀 Installation and Setup
  
