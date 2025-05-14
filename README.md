@@ -1,6 +1,7 @@
 # 📊 kafka-metrics-extractor
  
 `kafka-metrics-extractor` is a tool designed to pull raw usage from Kafka providers such as MSK, OSK and others (currently supports MSK).
+The script for extracting MSK usage, collects the data form CloudWatch and CostExplorer in order to avoid any cluster disruption. 
  
 ## 🚀 Installation and Setup
  
@@ -11,15 +12,15 @@ cd kafka-metrics-extractor
 ```
  
 ### 2️⃣ Set Up a Virtual Environment
+make sure your have python version is >=3.8
 ```bash
-mkdir .env
-virtualenv .env
-source .env/bin/activate
+python3 -m venv venv
+source venv/bin/activate
 ```
  
 ### 3️⃣ Install Dependencies
 ```bash
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 ```
  
 ### 4️⃣ Configure the Script
@@ -30,6 +31,7 @@ cp config.cfg.example config.cfg
 
 ### 🔐 Credential Setup
 MSK: You can authenticate using long-term credentials or temporary session credentials (via AWS STS).
+The script will extract the all clusters usage according to provided account and region
 ```bash
 export AWS_ACCESS_KEY_ID=your_key
 export AWS_SECRET_ACCESS_KEY=your_secret
