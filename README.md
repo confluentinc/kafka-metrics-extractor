@@ -8,7 +8,7 @@ collects the usage data from CloudWatch and CostExplorer in order to avoid any c
  
 ### 1️⃣ Clone the Repository
 ```bash
-git clone https://github.com/oisraeli/kafka-metrics-extractor
+git clone https://github.com/confluentinc/kafka-metrics-extractor
 cd kafka-metrics-extractor
 ```
  
