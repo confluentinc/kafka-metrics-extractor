@@ -25,7 +25,7 @@ def get_clusters_info(session):
     """Retrieve active MSK clusters."""
     conn = session.client('kafka')
     clusters = {}
-    paginator = conn.get_paginator('list_clusters')
+    paginator = conn.get_paginator('list_clusters_v2')
     for page in paginator.paginate():
         for instance in page['ClusterInfoList']:
             if instance['State'] == 'ACTIVE':
@@ -33,15 +33,17 @@ def get_clusters_info(session):
     return {'msk_running_instances': clusters}
 
 
-def get_metric(cloud_watch, cluster_id, node, metric, is_peak, time_period=METRIC_COLLECTION_PERIOD_DAYS):
-    """Fetch CloudWatch metrics for a given MSK broker node."""
+def get_metric(cloud_watch, cluster_id, metric, is_peak, node=None, time_period=METRIC_COLLECTION_PERIOD_DAYS):
+    """Fetch CloudWatch metrics for a given MSK cluster (and optionally node)."""
     end_time = datetime.date.today() + datetime.timedelta(days=1)
     start_time = end_time - datetime.timedelta(days=time_period)
     period = AGGREGATION_DURATION_SECONDS if is_peak else AGGREGATION_DURATION_SECONDS * 24 * time_period
 
     dimensions = [{'Name': 'Cluster Name', 'Value': cluster_id}]
-    if metric != 'GlobalTopicCount':
+    if node is not None and metric != 'GlobalTopicCount':
         dimensions.append({'Name': 'Broker ID', 'Value': str(node)})
+
+    statistics = ['Maximum'] if is_peak else ['Average']
 
     response = cloud_watch.get_metric_statistics(
         Namespace='AWS/Kafka',
@@ -50,10 +52,16 @@ def get_metric(cloud_watch, cluster_id, node, metric, is_peak, time_period=METRI
         StartTime=start_time.isoformat(),
         EndTime=end_time.isoformat(),
         Period=period,
-        Statistics=['Average']
+        Statistics=statistics
     )
+    if is_peak:
+        maximum_value = 0
+        for record in response.get('Datapoints', []):
+            maximum_value = max(maximum_value, record.get('Maximum', 0))
+        return maximum_value
+    else:
+      return max((rec['Average'] for rec in response.get('Datapoints', [])), default=0)
 
-    return max((rec['Average'] for rec in response.get('Datapoints', [])), default=0)
 
 
 def create_data_frame():
@@ -72,20 +80,35 @@ def write_clusters_info(df, clusters_info, session, region):
 
     rows = []
     for cluster_id, details in running_instances.items():
+        cluster_type = details.get('ClusterType', 'CLUSTERLESS').upper()
         print(f'Processing cluster account: {cluster_id}')
         cluster_info_written = False
         base_info = []
 
         if not cluster_info_written:
-            # Get the cluster's auth configuration
-            auth_config = running_instances[cluster_id]['ClientAuthentication']
+            auth_string = "N/A"  # Default value
+            az_distribution = "N/A"
+            kafka_version = "N/A"
+            enhanced_monitoring = "N/A"
+            number_of_broker_nodes = 1 # for serverless
+            instance_type = "N/A"
+            volume_size = 0
 
-            # Simplify auth info into a string
-            az_distribution = running_instances[cluster_id]["BrokerNodeGroupInfo"]["BrokerAZDistribution"]
-            if az_distribution == "DEFAULT":
-               az_distribution = "Multiple AZ"
-            elif az_distribution == "SINGLE":
-                az_distribution = "Single AZ"
+            # Get the cluster's auth configuration
+            if cluster_type == 'PROVISIONED':
+                auth_config = details['Provisioned']['ClientAuthentication']
+                az_distribution = details['Provisioned']["BrokerNodeGroupInfo"]["BrokerAZDistribution"]
+                if az_distribution == "DEFAULT":
+                   az_distribution = "Multiple AZ"
+                elif az_distribution == "SINGLE":
+                    az_distribution = "Single AZ"
+                kafka_version = details['Provisioned']['CurrentBrokerSoftwareInfo']['KafkaVersion'],
+                enhanced_monitoring = details['Provisioned']['EnhancedMonitoring']
+                number_of_broker_nodes = details['Provisioned']['NumberOfBrokerNodes']
+                instance_type = details.get('Provisioned', {}).get('BrokerNodeGroupInfo', {}).get('InstanceType', "N/A")
+            else:
+                auth_config = details['Serverless']['ClientAuthentication']
+                az_distribution = "Multiple AZ"
 
             # Simplify auth info into a string
             auth_types = []
@@ -103,28 +126,30 @@ def write_clusters_info(df, clusters_info, session, region):
                 cluster_id,
                 az_distribution,
                 auth_string,
-                running_instances[cluster_id]['CurrentBrokerSoftwareInfo']['KafkaVersion'],
-                running_instances[cluster_id]['EnhancedMonitoring']
+                kafka_version,
+                enhanced_monitoring
             ]
 
-        for node_id in range(1, details['NumberOfBrokerNodes'] + 1):
-            # Empty version of the same size
-            row = []
-            if cluster_info_written:
-                row += [""] * len(CLUSTER_INFO)
-            else:
-                row+=base_info
-                cluster_info_written = True
+            # Determine the number of nodes based on cluster type
+            for node_id in range(1, number_of_broker_nodes + 1):
+                # Empty version of the same size
+                row = []
+                if cluster_info_written:
+                    row += [""] * len(CLUSTER_INFO)
+                else:
+                    row += base_info
+                    cluster_info_written = True
 
-            row += [
-                node_id,
-                details['BrokerNodeGroupInfo']['InstanceType'],
-                details['BrokerNodeGroupInfo']['StorageInfo']['EbsStorageInfo']['VolumeSize']
-            ]
+                row += [
+                    node_id,
+                    instance_type,
+                    volume_size
+                ]
 
-            row += [get_metric(cloud_watch, cluster_id, node_id, metric, False) for metric in AVERAGE_METRICS]
-            row += [get_metric(cloud_watch, cluster_id, node_id, metric, True) for metric in PEAK_METRICS]
-            rows.append(row)
+                node_to_pass = node_id if cluster_type == 'PROVISIONED' else None
+                row += [get_metric(cloud_watch, cluster_id, metric, False, node_to_pass) for metric in AVERAGE_METRICS]
+                row += [get_metric(cloud_watch, cluster_id, metric, True, node_to_pass) for metric in PEAK_METRICS]
+                rows.append(row)
 
     return pd.DataFrame(rows, columns=df.columns)
 

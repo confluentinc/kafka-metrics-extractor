@@ -1,0 +1,2 @@
+[msk-production]
+cluster_type = msk
