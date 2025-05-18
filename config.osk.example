@@ -1,6 +1,3 @@
-[msk-production]
-cluster_type = msk
-
 [kafka-production]
 cluster_type = kafka
 kafka_broker = kafka.mycompany.com:9092

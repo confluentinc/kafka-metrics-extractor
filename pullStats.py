@@ -35,6 +35,10 @@ def main():
 
     for section in config.sections():
         if config.get(section, 'cluster_type') == "msk":
+            region = os.environ.get('AWS_DEFAULT_REGION')
+            if not region:
+                print("AWS_DEFAULT_REGION environment variable not set")
+                sys.exit(1)
             pullMSKStats.process_aws_account(section, args.output_dir)
         else:
             print("❌ Invalid cluster type. currently only 'msk' is supported.")
