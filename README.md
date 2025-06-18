@@ -66,6 +66,7 @@ To run the script successfully, your IAM user or role must have the following pe
       "Effect": "Allow",
       "Action": [
         "kafka:ListClusters",
+        "kafka:ListClustersV2",
         "kafka:DescribeCluster"
       ],
       "Resource": "*"
