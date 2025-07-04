@@ -5,4 +5,4 @@ pandas>=1.3.0
 pathlib>=1.0.1
 requests~=2.32.3
 psutil~=7.0.0
-confluent-kafka>=2.8.2,<2.11
+confluent-kafka>=2.8.2,<2.12
