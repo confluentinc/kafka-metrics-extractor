@@ -337,6 +337,7 @@ def get_msk_cluster_data(session, region):
                 enhanced_monitoring = details['Provisioned']['EnhancedMonitoring']
                 number_of_broker_nodes = details['Provisioned']['NumberOfBrokerNodes']
                 instance_type = details.get('Provisioned', {}).get('BrokerNodeGroupInfo', {}).get('InstanceType', "N/A")
+                volume_size =  details.get('Provisioned', {}).get('BrokerNodeGroupInfo', {}).get('StorageInfo', {}).get('EbsStorageInfo', {}).get('VolumeSize', 0)
             else:
                 auth_config = details['Serverless']['ClientAuthentication']
                 az_distribution = "Multiple AZ"
